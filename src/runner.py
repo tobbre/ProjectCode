@@ -10,9 +10,12 @@ import scipy
 import networkx as nx
 
 a = time.time()
-g = graph.read_graph(filepath="/Users/tobiasbreuer/Desktop/E&OR/Building and Mining Knowledge Graphs/Project/yago_short10m.nt")
-c = algorithms.k_core1(g, 17)
+g = graph.read_graph(filepath="/Users/tobiasbreuer/Desktop/E&OR/Building and Mining Knowledge Graphs/Project/yago_short100k.nt")
+k = 5
+c = algorithms.k_core1(g, k)
 b = time.time()
+timestamp = time.strftime("%d-%m-%Y_%H:%M")
+nx.write_adjlist(c, "out/kcores%s_" % k + timestamp)
 print(b - a)
 nx.draw(c, node_size=5, width=0.2)
 plt.show()
