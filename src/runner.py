@@ -6,7 +6,7 @@ import time
 import scipy
 import matplotlib
 from matplotlib import pyplot as plt
-plt.rcParams['figure.dpi'] = 5000
+plt.rcParams['figure.dpi'] = 700
 import networkx as nx
 
 
