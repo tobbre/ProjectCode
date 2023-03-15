@@ -1,5 +1,7 @@
 import copy
 import networkx as nx
+import random
+import graph
 
 from collections import defaultdict
 
@@ -155,7 +157,11 @@ def k_core(g, k):
     return k_cores
 
 
-def k_core1(g, k=None):
+def custom_to_networkX_graph(g):
+    """
+    :param g: custom graph from graph.py
+    :return: Graph object from NetworkX package
+    """
     G = nx.Graph()
 
     for i in range(len(g.neighbors)):
@@ -163,15 +169,153 @@ def k_core1(g, k=None):
 
     for i in range(len(g.neighbors)):
         for j in range(len(g.neighbors[i])):
-            G.add_edge(i, g.neighbors[i][j])
+            G.add_edge(i, g.neighbors[i][j], capacity=1)
+
+    return G
+
+
+def networkX_to_custom_graph(G, original_g):
+    """
+    :param G: networkX graph object
+    :param original_g: original custom graph object from graph.py
+    :return: custom graph object from graph.py with only those triples that remain after decomposition through networkX
+    """
+    g = copy.deepcopy(original_g)
+    g.neighbors = []    # neighbors is removed, since we care about the triples from now on. neighbors does not matter anymore.
+    g.triples = []
+    G_nodes = list(G.nodes)
+    for triple in original_g.triples:
+        subj = triple[0]
+        pred = triple[1]
+        obj = triple[2]
+        if (subj in G_nodes) and (obj in G_nodes):
+            g.triples.append(triple)
+    return g
+
+
+
+def k_core1(G, k=None):
     G.remove_edges_from(nx.selfloop_edges(G))
     H = nx.k_core(G, k=k)
 
     return H
 
 
+def min_cut(G, s_node=None, t_node=None):
+    if s_node==None:
+        s_node = list(G.nodes)[random.randint(0, len(G.nodes))]   # list(G.nodes)[0]
+    if t_node==None:
+        t_node = list(G.nodes)[random.randint(0, len(G.nodes))]  # list(G.nodes)[len(G.nodes) - 1]
+
+    cut_value, partition = nx.minimum_cut(G, s_node, t_node, "capacity")
+    reachable, non_reachable = partition
+
+    return reachable, non_reachable
 
 
+def con_comps_and_largest(G):
+    comps = list(nx.connected_components(G))
+    max_size = 0
+    index_max_size = 0
+    for i in range(len(comps)):
+        if max_size <= len(comps[i]):
+            max_size = len(comps[i])
+            index_max_size = i
+    return comps, index_max_size
+
+
+def remove_smaller_connected_components(G, comps=None, largest=None):
+    """
+    Computes the connected components of graph G, creates a copy H of G, and removes all of connected components
+    from H except the largest one.
+    :param G:
+    :return:
+    """
+    if comps==None and largest==None:
+        comps, largest = con_comps_and_largest(G)
+    H = copy.deepcopy(G)
+    for c in range(len(comps)):
+        if c != largest:
+                H.remove_nodes_from(comps[c])
+
+    return H
+
+
+def global_w(g):
+    """
+    Implements Algorithm 1: Global Weak summarization of a graph
+    :param g: Graph object from graph.py. NOT NetworkX graph.
+    :return:
+    """
+    def fuse(array):
+        return min(array)
+
+    op = {}
+    ip = {}
+    s = {}
+    t = {}
+    # 1
+    for triple in g.triples:
+        if triple[0] not in op:
+            op[triple[0]] = []
+            ip[triple[0]] = []
+        if triple[2] not in op:
+            op[triple[2]] = []
+            ip[triple[2]] = []
+        op[triple[0]].append(triple[1])
+        ip[triple[2]].append(triple[1])
+    # 2
+    for n in list(op):
+        # 2.1
+        x = fuse([s[p] for p in op[n]])
+        if len(x) == 0:
+            x = n
+        # 2.2
+        y = fuse([t[p] for p in ip[n]])
+        if len(y) == 0:
+            y = n
+        # 2.3
+        z = fuse([x, y])
+        # 2.4
+        for p in ip[n]:
+            s[p] = z
+        # 2.5
+        for p in op[n]:
+            t[p] = z
+    # 3
+    for n in list(ip):
+        # 2.1
+        x = fuse([t[p] for p in ip[n]])
+        if len(x) == 0:
+            x = n
+        # 2.2
+        y = fuse([s[p] for p in op[n]])
+        if len(y) == 0:
+            y = n
+        # 2.3
+        z = fuse([x, y])
+        # 2.4
+        for p in op[n]:
+            t[p] = z
+        # 2.5
+        for p in ip[n]:
+            s[p] = z
+    # 4
+    # these two dictionaries contain information about which original nodes have been summarized into s[p] and t[p].
+    covered_by_s = {}
+    covered_by_t = {}
+    h = graph.Graph()
+    for triple in g.triples:
+        subj = triple[0]
+        pred = triple[1]
+        obj = triple[2]
+        if pred not in covered_by_s:
+            covered_by_s[pred] = []
+        if pred not in covered_by_t:
+            covered_by_t[pred] = []
+        covered_by_s[pred].append(subj)
+        covered_by_t[pred].append(obj)
+        h.triples.append([s[pred], pred, t[pred]])
 
 
 
