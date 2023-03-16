@@ -25,6 +25,7 @@ def read_compute_print_kcores(fi="1m", k=9):
 	print("writing adjacency list: ", str(c - b))
 	nx.draw(cores, node_size=5, width=0.2)
 	plt.savefig("out/kcores%s%s_" % (fi, k) + timestamp)
+	plt.clf()
 	d = time.time()
 	print("drawing figure: ", str(d - c))
 	# reachable, non_reachable = algorithms.min_cut(c)
@@ -53,9 +54,22 @@ def minnodecut_draw(G):
 
 	return comps, largest
 
-for k in range(11, 16):
-	read_compute_print_kcores(fi="1m", k=k)
-	read_compute_print_kcores(fi="10m", k=k)
+
+
+cores = nx.read_adjlist("out/kcores10m9_13-03-2023_18:40")
+nx.draw(cores, node_size=4, width=0.1)
+plt.savefig("out/kcores10m9_13-03-2023_18:40")
+plt.clf()
+for k in range(10, 16):
+	a = time.time()
+	cores = nx.read_adjlist("out/kcores10m%s_15-03-2023_19:09" % k)
+	b = time.time()
+	print("Read graph: " + str(b - a))
+	nx.draw(cores, node_size=4, width=0.1)
+	plt.savefig("out/kcores10m%s_15-03-2023_19:09" % k)
+	c = time.time()
+	print("Draw & Save figure: " + str(c - b))
+	plt.clf()
 
 
 # G = nx.read_adjlist("out/H")
