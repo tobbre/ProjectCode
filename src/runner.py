@@ -58,10 +58,13 @@ def minnodecut_draw(G):
 
 	plt.clf()
 	with open(file="out/comps.txt", mode="a") as f:
-		print("\n"*2)
+		f.write("\n" * 2)
+		print("\n")
+		f.write("largest component at %s is index " % timestamp + str(largest) + ". All components:\n")
 		print("largest component at %s is index " % timestamp + str(largest) + ". All components:")
 		for i in range(len(comps)):
-			print(comps[i])
+			f.write(str(comps[i]) + "\n")
+			print(str(comps[i]))
 
 	return comps, largest
 
@@ -84,10 +87,10 @@ def minnodecut_draw(G):
 
 
 # reads graph files and finds components, removes all but biggest
-G = nx.read_adjlist("out/kcores10m11_15-03-2023_19:09")
+G = nx.read_adjlist("out/H10m11_16-03-2023_15:41")
 comps, largest = minnodecut_draw(G)
 H = algorithms.remove_smaller_connected_components(G, comps, largest)
-nx.write_adjlist(H, "out/H10m11%s" % timestamp)
+nx.write_adjlist(H, "out/H10m11_%s" % timestamp)
 
 
 
