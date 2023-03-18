@@ -87,7 +87,7 @@ def minnodecut_draw(G):
 
 
 # reads graph files and finds components, removes all but biggest
-G = nx.read_adjlist("out/H10m11_16-03-2023_15:41")
+G = nx.read_adjlist("out/H10m11_17-03-2023_00:14")
 comps, largest = minnodecut_draw(G)
 H = algorithms.remove_smaller_connected_components(G, comps, largest)
 nx.write_adjlist(H, "out/H10m11_%s" % timestamp)
