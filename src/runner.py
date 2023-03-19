@@ -10,7 +10,6 @@ plt.rcParams['figure.dpi'] = 700
 import networkx as nx
 
 
-timestamp = time.strftime("%d-%m-%Y_%H:%M")
 
 
 def read_compute_print_kcores(fi="1m", k=9):
@@ -87,10 +86,15 @@ def minnodecut_draw(G):
 
 
 # reads graph files and finds components, removes all but biggest
-G = nx.read_adjlist("out/H10m11_18-03-2023_18:01")
-H, comps, largest = minnodecut_draw(G)
-H = algorithms.remove_smaller_connected_components(H, comps, largest)
-nx.write_adjlist(H, "out/H10m11_%s" % timestamp)
+G = nx.read_adjlist("out/H10m11_18-03-2023_20:09")
+starttime = time.time()
+rt = 0
+while rt < 3600*6:
+	timestamp = time.strftime("%d-%m-%Y_%H:%M")
+	G, comps, largest = minnodecut_draw(G)
+	G = algorithms.remove_smaller_connected_components(G, comps, largest)
+	nx.write_adjlist(G, "out/H10m11_%s" % timestamp)
+	rt = time.time() - starttime
 
 
 
