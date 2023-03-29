@@ -1,9 +1,16 @@
 import copy
 import networkx as nx
+from networkx.algorithms.community.centrality import girvan_newman
 import random
+import time
 import graph
-
+from node2vec import Node2Vec
+from sklearn.cluster import KMeans
+import numpy as np
 from collections import defaultdict
+from matplotlib import pyplot as plt
+
+colors = ['b', 'g', 'r', 'c', 'm', 'yellow', 'k', 'tab:orange', 'tab:gray', 'tab:brown', 'tab:purple', 'tab:pink', 'chartreuse', 'gold']
 
 def insertionSort(arr):
     """
@@ -157,7 +164,7 @@ def k_core(g, k):
     return k_cores
 
 
-def custom_to_networkX_graph(g):
+def custom_to_networkX_undir_graph(g):
     """
     :param g: custom graph from graph.py
     :return: Graph object from NetworkX package
@@ -186,12 +193,61 @@ def networkX_to_custom_graph(G, original_g):
     G_nodes = list(G.nodes)
     for triple in original_g.triples:
         subj = triple[0]
-        pred = triple[1]
+        # pred = triple[1]
         obj = triple[2]
-        if (subj in G_nodes) and (obj in G_nodes):
+        if (subj in G) and (obj in G):
             g.triples.append(triple)
     return g
 
+
+def k_core(g, k):
+    """
+    https://www.geeksforgeeks.org/find-k-cores-graph/
+    :param g: Graph G
+    :return: Collection c of k-cores
+    """
+    def DFSUtil(g, v, visited, vDegree, k):
+        visited.add(v)
+
+        for i in g.neighbors[v]:
+            if vDegree[v] < k:
+                vDegree[i] -= 1
+                if vDegree[i] == k-1 and i in visited:
+                    visited.remove(i)
+
+            if i not in visited:
+                DFSUtil(g, i, visited, vDegree, k)
+                if vDegree[i] < k:
+                    vDegree[v] -= 1
+
+    visit = set()
+    degree = defaultdict(lambda: 0)
+
+    for i in range(len(g.neighbors)):
+        degree[i] = len(g.neighbors[i])
+    for i in range(len(g.neighbors)):
+        if i not in visit:
+            DFSUtil(g, i, visit, degree, k)
+
+    allocated = set()
+    k_cores = []
+    for i in range(len(g.neighbors)):
+        if i not in allocated:
+            if degree[i] >= k:
+                new_core = []
+                allocated.add(i)
+                new_core.append(i)
+                # for j in range(len(new_core)):
+                j = 0
+                while j in range(len(new_core)):
+                    for l in range(len(g.neighbors[new_core[j]])):
+                        node = g.neighbors[new_core[j]][l]
+                        if (node not in new_core) and (degree[node] >= k):
+                            new_core.append(node)
+                            allocated.add(node)
+                    j += 1
+                k_cores.append(new_core)
+    return k_cores
 
 
 def k_core1(G, k=None):
@@ -213,7 +269,7 @@ def min_cut(G, s_node=None, t_node=None):
     return reachable, non_reachable
 
 
-def con_comps_and_largest(G):
+def connected_comps_and_largest(G):
     comps = list(nx.connected_components(G))
     max_size = 0
     index_max_size = 0
@@ -232,7 +288,7 @@ def remove_smaller_connected_components(G, comps=None, largest=None):
     :return:
     """
     if comps==None and largest==None:
-        comps, largest = con_comps_and_largest(G)
+        comps, largest = connected_comps_and_largest(G)
     H = copy.deepcopy(G)
     for c in range(len(comps)):
         if c != largest:
@@ -318,4 +374,142 @@ def global_w(g):
         h.triples.append([s[pred], pred, t[pred]])
 
 
+def clustering_using_embedding(G, k, seed):
+    timestamp = time.strftime("%d-%m_%H:%M")
+    print("Current timestamp: " + timestamp)
 
+    # Generate walks
+    node2vec = Node2Vec(G, dimensions=20, walk_length=60, num_walks=80, workers=4)
+    # Learn embeddings
+    model = node2vec.fit(window=10, min_count=1)
+    # model.wv.most_similar('1')
+    model.wv.save_word2vec_format("out/embeddingclustering/%s_H.emb" % timestamp)  # save the embedding in file embedding.emb
+    X = np.loadtxt("out/embeddingclustering/%s_H.emb" % timestamp, skiprows=1)  # load the embedding of the nodes of the graph
+    # sort the embedding based on node index in the first column in X
+    X = X[X[:, 0].argsort()];
+    np.savetxt('out/embeddingclustering/%s_X' % timestamp, X, delimiter=' ')
+    Z = X[0:X.shape[0], 1:X.shape[1]];  # remove the node index from X and save in Z
+
+    kmeans = KMeans(n_clusters=k, random_state=0).fit(Z)  # apply kmeans on Z
+    labels = kmeans.labels_  # get the cluster labels of the nodes.
+    np.savetxt('out/embeddingclustering/%s_labels' % timestamp, labels, delimiter=' ')
+
+    with open("out/embeddingclustering/%s_X" % timestamp, "r") as xf, open("out/embeddingclustering/%s_labels" % timestamp, "r") as lf:
+        x = []
+        for line in xf.readlines():
+            x.append(int(float(line.split(" ")[0])))
+        l = []
+        for line in lf.readlines():
+            l.append(int(float(line)))
+
+        xl = {}  # each node has a label
+        for i in range(len(x)):
+            xl[x[i]] = l[i]
+        lx = []  # each label has a list of nodes
+        for i in range(k):
+            lx.append([])
+        for key in list(xl):
+            lx[xl[key]].append(str(key))
+
+        pos = nx.spring_layout(G, seed=seed)
+        options = {"node_size": 4}
+        for i in range(len(lx)):
+            nx.draw_networkx_nodes(G, pos, nodelist=lx[i], node_color=colors[i], **options) # colors defined above
+        nx.draw_networkx_edges(G, pos, width=0.1)
+        plt.savefig("out/embeddingclustering/%s_%sclusters" % (timestamp, k))
+        with open("out/embeddingclustering/%s_x_labels.txt" % timestamp, "x") as f:
+            for i in range(k):
+                f.write("Cluster " + str(i) + ": ")
+                f.write(str(lx[i]) + "\n")
+
+
+def remove_clusters_save_draw(G, clusters, seed_figure):
+    timestamp = time.strftime("%d-%m_%H:%M")
+    print("Current timestamp: " + timestamp)
+    for cluster in clusters:
+        G.remove_nodes_from(cluster)
+    nx.write_adjlist(G, "out/intermediategraphs/%s_H" % timestamp)
+    pos = nx.spring_layout(G, seed=seed_figure)
+    options = {"node_size": 4, "width": 0.1}
+    nx.draw(G, pos=pos, **options)
+    plt.savefig("out/intermediategraphs/%s_H" % timestamp)
+
+
+def reduce_graph_to_cluster(G, cluster):
+    H = copy.deepcopy(G)
+    H_nodes = list(H.nodes)
+    for node in H_nodes:
+        if node not in cluster:
+            H.remove_node(node)
+    return H
+
+
+def compute_different_kcores(G, start_k, end_k, seed_figure):
+    timestamp = time.strftime("%d-%m_%H:%M")
+    print("Current timestamp: " + timestamp)
+    for k in range(start_k, end_k + 1):
+        a = time.time()
+        H = k_core1(G, k=k)
+        nx.write_adjlist(H, "out/kcoregraphs/%s_%s-core" % (timestamp, k))
+        b = time.time()
+        print("Compute & save %s-core: " % k + str(b - a))
+        # # Only allow the following if your graph is small, MAXIMUM like 10000 nodes. Otherwise the pos calculation before or during nx.draw takes way too long.
+        # options = {"node_size": 4, "width": 0.1}
+        # pos = nx.spring_layout(G, seed=seed_figure)
+        # nx.draw(H, **options)
+        # c = time.time()
+        # print("nx.draw() complete: " + str(c - b))
+        # plt.savefig("out/kcoregraphs/%s_%s-core" % (timestamp, k))
+        # d= time.time()
+        # print("Draw & save figure %s-core: " + str(d - c))
+        # plt.clf()
+
+
+def redraw_clusterfigures_differentseed(desired_timestamp, start_k, end_k, new_seed):
+    new_timestamp = time.strftime("%d-%m_%H:%M")
+    print("Current timestamp: " + new_timestamp)
+    for k in range(start_k, end_k + 1):
+        G = nx.read_adjlist("out/kcoregraphs/%s_%s-core" % (desired_timestamp, k))
+        pos = nx.spring_layout(G, seed=new_seed)
+        options = {"node_size": 4, "width": 0.1}
+        a = time.time()
+        nx.draw(G, pos,  **options)
+        plt.savefig("out/kcoregraphs/%s_%s-core" % (new_timestamp, k))
+        b = time.time()
+        print("Draw & save figure: " + str(b - a))
+
+
+def plot_graph_using_embedding(filepath):
+    G = nx.read_adjlist(filepath)
+    # Generate walks
+    node2vec = Node2Vec(G, dimensions=2, walk_length=60, num_walks=60, workers=4)
+    # Learn embeddings
+    model = node2vec.fit(window=10, min_count=1)
+    # model.wv.most_similar('1')
+    model.wv.save_word2vec_format("%s.emb" % filepath)  # save the embedding in file embedding.emb
+    X = np.loadtxt("%s.emb" % filepath, skiprows=1)  # load the embedding of the nodes of the graph
+
+    plt.title(filepath)
+    x = [X[i][1] for i in range(len(X))]
+    y = [X[i][2] for i in range(len(X))]
+    plt.scatter(x, y, color ="blue", marker=".", s=1)
+    plt.savefig(filepath + "embeddingdrawing")
+
+
+def color_clusters_in_graph(G_filepath, clusters, seed):
+    G = nx.read_adjlist(G_filepath)
+    pos = nx.spring_layout(G, seed=seed)
+    options = {"node_size": 4}
+    for i in range(len(clusters)):
+        nx.draw_networkx_nodes(G, pos, nodelist=clusters[i], node_color=colors[i], **options) # colors defined above
+    nx.draw_networkx_edges(G, pos, width=0.1)
+    plt.savefig(G_filepath + "_postclustering")
+
+
+def custom_graph_to_rdf(g, destination):
+    with open(destination, 'x') as f:
+        for triple in g.triples:
+            subject_iri = g.index_to_iri[triple[0]]
+            predicate_iri = g.index_to_iri_predicates[triple[1]]
+            object_iri = g.index_to_iri[triple[2]]
+            f.write(subject_iri + "\t" + predicate_iri + "\t" + object_iri + "\t.\n")
