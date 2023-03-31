@@ -281,6 +281,13 @@ def global_w(g):
 
 
 def clustering_using_embedding(G, k, seed):
+    """
+    Taken from https://stackoverflow.com/questions/62902871/how-can-i-cluster-a-graph-g-created-in-networkx
+    :param G:
+    :param k:
+    :param seed:
+    :return:
+    """
     timestamp = time.strftime("%d-%m_%H:%M")
     print("Current timestamp: " + timestamp)
 
@@ -289,7 +296,7 @@ def clustering_using_embedding(G, k, seed):
     # Learn embeddings
     model = node2vec.fit(window=10, min_count=1)
     # model.wv.most_similar('1')
-    model.wv.save_word2vec_format("out/embeddingclustering/%s_H.emb" % timestamp)  # save the embedding in file embedding.emb
+    model.wv.save_word2vec_format("out/embeddingclustering/%s_H.emb" % timestamp)  # save the embedding to file
     X = np.loadtxt("out/embeddingclustering/%s_H.emb" % timestamp, skiprows=1)  # load the embedding of the nodes of the graph
     # sort the embedding based on node index in the first column in X
     X = X[X[:, 0].argsort()];
@@ -392,7 +399,7 @@ def plot_graph_using_embedding(filepath):
     # Learn embeddings
     model = node2vec.fit(window=10, min_count=1)
     # model.wv.most_similar('1')
-    model.wv.save_word2vec_format("%s.emb" % filepath)  # save the embedding in file embedding.emb
+    model.wv.save_word2vec_format("%s.emb" % filepath)  # save the embedding to file
     X = np.loadtxt("%s.emb" % filepath, skiprows=1)  # load the embedding of the nodes of the graph
 
     plt.title(filepath)

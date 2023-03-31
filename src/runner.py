@@ -36,7 +36,7 @@ def minnodecut_draw(G, timestamp):
 	print("drawing figure: ", str(e - d))
 
 	plt.clf()
-	with open(file="out/comps10m.txt", mode="a") as f:
+	with open(file="out/yago10m/comps10m.txt", mode="a") as f:
 		f.write("\n" * 2)
 		print("\n")
 		f.write("largest component at %s is index " % timestamp + str(largest) + ". All components:\n")
@@ -47,7 +47,7 @@ def minnodecut_draw(G, timestamp):
 
 	return H, comps, largest
 
-# STEP 1: Computes various cores, so that you can select which one fits best.
+# # STEP 1: Computes various cores, so that you can select which one fits best.
 # g = graph.read_graph(filepath="/Users/tobiasbreuer/Desktop/E&OR/Building and Mining Knowledge Graphs/Project/yago-wd-facts.nt")
 # G = algorithms.custom_to_networkX_undir_graph(g)
 # seed_figure = 3113794652
@@ -60,8 +60,8 @@ def minnodecut_draw(G, timestamp):
 
 seed_figure = 3113794652 # whichever seed looked best in STEP 1 or STEP 2
 
-# TODO: Move (copy?) the chosen k-core graph file into the directory "/out/intermediategraphs" and rename to "timestamp_H".
-# STEP 3: computes k many clusters based on a Node2Vec embedding and returns them in file timestamp_x_labels.
+# # TODO: Move (copy?) the chosen k-core graph file into the directory "/out/intermediategraphs" and rename to "timestamp_H".
+# # STEP 3: computes k many clusters based on a Node2Vec embedding and returns them in file timestamp_x_labels.
 # G = nx.read_adjlist("out/intermediategraphs/25-03_21:54_H")
 # algorithms.clustering_using_embedding(G, k=14, seed=seed_figure)   # Set k equal to the number of clusters you want to extract from the graph! (usually the number of clusters you can see  in the previously drawn figures)
 
@@ -99,6 +99,7 @@ clusters = [['729', '1424', '2321', '10895', '36857', '36888', '36889', '38795',
 #                                    seed=seed_figure)
 
 # STEP 7: For each cluster, produce RDF file.
+timestamp = time.strftime("%d-%m_%H:%M")
 a = time.time()
 g_original = graph.read_graph(filepath="/Users/tobiasbreuer/Desktop/E&OR/Building and Mining Knowledge Graphs/Project/yago-wd-facts.nt")
 b = time.time()
@@ -115,7 +116,7 @@ for i in range(len(clusters)):
 	g = algorithms.networkX_to_custom_graph(H, g_original)
 	f = time.time()
 	print("custom graph created from nx graph: " + str(f - e))
-	algorithms.custom_graph_to_rdf(g, "out/finalclustersrdf/cluster%s.nt" % i)
+	algorithms.custom_graph_to_rdf(g, "out/finalclustersrdf/%scluster%s.nt" % (timestamp, i))
 	h = time.time()
 	print("written to RDF: " + str(h - f))
 
