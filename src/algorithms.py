@@ -114,56 +114,6 @@ def greedyLD_full(g):
     return c
 
 
-def k_core(g, k):
-    """
-    https://www.geeksforgeeks.org/find-k-cores-graph/
-    :param g: Graph G
-    :return: Collection c of k-cores
-    """
-    def DFSUtil(g, v, visited, vDegree, k):
-        visited.add(v)
-
-        for i in g.neighbors[v]:
-            if vDegree[v] < k:
-                vDegree[i] -= 1
-                if vDegree[i] == k-1 and i in visited:
-                    visited.remove(i)
-
-            if i not in visited:
-                DFSUtil(g, i, visited, vDegree, k)
-                if vDegree[i] < k:
-                    vDegree[v] -= 1
-
-    visit = set()
-    degree = defaultdict(lambda: 0)
-
-    for i in range(len(g.neighbors)):
-        degree[i] = len(g.neighbors[i])
-    for i in range(len(g.neighbors)):
-        if i not in visit:
-            DFSUtil(g, i, visit, degree, k)
-
-    allocated = set()
-    k_cores = []
-    for i in range(len(g.neighbors)):
-        if i not in allocated:
-            if degree[i] >= k:
-                new_core = []
-                allocated.add(i)
-                new_core.append(i)
-                # for j in range(len(new_core)):
-                j = 0
-                while j in range(len(new_core)):
-                    for l in range(len(g.neighbors[new_core[j]])):
-                        node = g.neighbors[new_core[j]][l]
-                        if (node not in new_core) and (degree[node] >= k):
-                            new_core.append(node)
-                            allocated.add(node)
-                    j += 1
-                k_cores.append(new_core)
-    return k_cores
-
-
 def custom_to_networkX_undir_graph(g):
     """
     :param g: custom graph from graph.py
@@ -187,70 +137,26 @@ def networkX_to_custom_graph(G, original_g):
     :param original_g: original custom graph object from graph.py
     :return: custom graph object from graph.py with only those triples that remain after decomposition through networkX
     """
-    g = copy.deepcopy(original_g)
-    g.neighbors = []    # neighbors is removed, since we care about the triples from now on. neighbors does not matter anymore.
-    g.triples = []
+    g = graph.Graph()
+    g.index_to_iri = copy.deepcopy(original_g.index_to_iri)
+    g.iri_to_index = copy.deepcopy(original_g.iri_to_index)
+    g.index_to_iri_predicates = copy.deepcopy(original_g.index_to_iri_predicates)
+    g.iri_to_index_predicates = copy.deepcopy(original_g.iri_to_index_predicates)
     G_nodes = list(G.nodes)
+    temp_triples = []
     for triple in original_g.triples:
         subj = triple[0]
         # pred = triple[1]
         obj = triple[2]
-        if (subj in G) and (obj in G):
-            g.triples.append(triple)
+        if (str(subj) in G):
+            if (str(obj) in G):
+                pass
+                temp_triples.append(triple)
+    g.triples = temp_triples
     return g
 
 
-def k_core(g, k):
-    """
-    https://www.geeksforgeeks.org/find-k-cores-graph/
-    :param g: Graph G
-    :return: Collection c of k-cores
-    """
-    def DFSUtil(g, v, visited, vDegree, k):
-        visited.add(v)
-
-        for i in g.neighbors[v]:
-            if vDegree[v] < k:
-                vDegree[i] -= 1
-                if vDegree[i] == k-1 and i in visited:
-                    visited.remove(i)
-
-            if i not in visited:
-                DFSUtil(g, i, visited, vDegree, k)
-                if vDegree[i] < k:
-                    vDegree[v] -= 1
-
-    visit = set()
-    degree = defaultdict(lambda: 0)
-
-    for i in range(len(g.neighbors)):
-        degree[i] = len(g.neighbors[i])
-    for i in range(len(g.neighbors)):
-        if i not in visit:
-            DFSUtil(g, i, visit, degree, k)
-
-    allocated = set()
-    k_cores = []
-    for i in range(len(g.neighbors)):
-        if i not in allocated:
-            if degree[i] >= k:
-                new_core = []
-                allocated.add(i)
-                new_core.append(i)
-                # for j in range(len(new_core)):
-                j = 0
-                while j in range(len(new_core)):
-                    for l in range(len(g.neighbors[new_core[j]])):
-                        node = g.neighbors[new_core[j]][l]
-                        if (node not in new_core) and (degree[node] >= k):
-                            new_core.append(node)
-                            allocated.add(node)
-                    j += 1
-                k_cores.append(new_core)
-    return k_cores
-
-
-def k_core1(G, k=None):
+def k_core(G, k=None):
     G.remove_edges_from(nx.selfloop_edges(G))
     H = nx.k_core(G, k=k)
 
@@ -449,7 +355,7 @@ def compute_different_kcores(G, start_k, end_k, seed_figure):
     print("Current timestamp: " + timestamp)
     for k in range(start_k, end_k + 1):
         a = time.time()
-        H = k_core1(G, k=k)
+        H = k_core(G, k=k)
         nx.write_adjlist(H, "out/kcoregraphs/%s_%s-core" % (timestamp, k))
         b = time.time()
         print("Compute & save %s-core: " % k + str(b - a))

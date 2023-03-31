@@ -112,12 +112,12 @@ for i in range(len(clusters)):
 	H = algorithms.reduce_graph_to_cluster(G, clusters[i])
 	e = time.time()
 	print("Reduced graph: " + str(e - d))
-	g = algorithms.networkX_to_custom_graph(G, g_original)
+	g = algorithms.networkX_to_custom_graph(H, g_original)
 	f = time.time()
 	print("custom graph created from nx graph: " + str(f - e))
-	algorithms.custom_graph_to_rdf(g, "/out/finalclustersrdf/cluster%s" % i)
-	g = time.time()
-	print("written to RDF: " + str(g - f))
+	algorithms.custom_graph_to_rdf(g, "out/finalclustersrdf/cluster%s.nt" % i)
+	h = time.time()
+	print("written to RDF: " + str(h - f))
 
 
 
